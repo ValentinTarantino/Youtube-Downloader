@@ -6,13 +6,9 @@ const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 
 const app = express();
-
-// Usamos el middleware de CORS de Express.
-// Vercel lo manejará, pero es buena práctica tenerlo.
 app.use(cors());
 
 // --- Ruta para obtener información del video ---
-// Nótese que ya no necesitamos /api/ en la ruta, Vercel se encarga de eso.
 app.get('/video-info', async (req, res) => {
     const videoURL = req.query.url;
     if (!videoURL || !ytdl.validateURL(videoURL)) {
@@ -30,13 +26,13 @@ app.get('/video-info', async (req, res) => {
                 hasAudio: f.hasAudio,
                 audioItag: f.hasAudio ? null : (bestAudioFormat ? bestAudioFormat.itag : null)
             }))
-            .filter((v, i, a) => a.findIndex(t => (t.quality === v.quality)) === i)
+            .filter((v, i, a) => a.findIndex(t => t.quality === v.quality) === i)
             .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
         const audioFormats = info.formats
             .filter(f => f.container === 'mp4' && f.audioBitrate === 128)
             .map(f => ({ itag: f.itag, quality: `${f.audioBitrate}kbps` }))
-            .filter((v, i, a) => a.findIndex(t => (t.quality === v.quality)) === i);
+            .filter((v, i, a) => a.findIndex(t => t.quality === v.quality) === i);
 
         res.json({
             title: info.videoDetails.title || 'Título no disponible',
@@ -90,6 +86,5 @@ app.get('/download', async (req, res) => {
     }
 });
 
-// ¡IMPORTANTE! NO usamos app.listen(). Vercel maneja el servidor.
-// En su lugar, exportamos la app de Express para que Vercel la use.
+// ¡IMPORTANTE! Exportamos la app para que Vercel la use. NO HAY app.listen().
 module.exports = app;

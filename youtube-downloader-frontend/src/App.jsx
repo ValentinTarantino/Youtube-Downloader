@@ -35,24 +35,22 @@ function App() {
       if (match && match[1]) {
         finalYoutubeUrl = `https://www.youtube.com/watch?v=${match[1]}`;
       } else {
-        throw new Error('URL de YouTube no válida. Por favor, verifica el formato del enlace.');
+        throw new Error('URL de YouTube no válida.');
       }
 
       // ¡CAMBIO CLAVE! La petición ahora va a /api/video-info
       const requestUrl = `${API_BASE_URL}/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`;
-      console.log('Fetching video info from:', requestUrl);
-
       const response = await fetch(requestUrl);
       
       if (!response.ok) {
-        throw new Error('Error al obtener la información del video.');
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error en la API: ${response.status}`);
       }
       
       const data = await response.json();
       setVideoInfo(data);
       setCleanYoutubeUrl(finalYoutubeUrl);
     } catch (err) {
-      console.error('Frontend Error:', err.message);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -78,7 +76,6 @@ function App() {
 
     // ¡CAMBIO CLAVE! La descarga ahora va a /api/download
     const downloadUrl = `${API_BASE_URL}/api/download?${params.toString()}`; 
-    console.log('Attempting to download from:', downloadUrl);
     window.open(downloadUrl, '_blank');
   };
 
