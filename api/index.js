@@ -6,16 +6,16 @@ const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 
 
+const app = express();
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+
 app.get('/healthz', (req, res) => {
     res.status(200).send('OK');
 });
 
-const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-
-// --- SOLUCIÓN DEFINITIVA: Preparar encabezados para engañar a YouTube ---
-function getRequestOptions() {
-const headers = {};
+// --- Preparar encabezados para engañar a YouTube ---
+    function getRequestOptions() {
+    const headers = {};
   // Usamos un User-Agent de un navegador real
     headers['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36';
 
