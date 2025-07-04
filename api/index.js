@@ -1,4 +1,5 @@
 const express = require('express');
+const app = express();
 const cors = require('cors');
 const ytdl = require('@distube/ytdl-core');
 const contentDisposition = require('content-disposition');
@@ -9,7 +10,7 @@ app.get('/healthz', (req, res) => {
     res.status(200).send('OK');
 });
 
-const app = express();
+
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 
 // --- Ruta para obtener información del video ---
