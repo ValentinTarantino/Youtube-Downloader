@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: youtube-downloader-api
+    rootDir: api
+    env: node
+    buildCommand: "npm install"
+    startCommand: "node index.js"
+    envVars:
+      - key: FFMPEG_URL
+        value: https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+      - key: NPM_CONFIG_GLOBAL
+        value: /usr/local
+    healthCheckPath: /healthz
+    plan: free
+    autoDeploy: true
+    buildpacks:
+      - url: https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
