@@ -1,3 +1,5 @@
+// api/index.js (CÓDIGO COMPLETO Y DEFINITIVO PARA VERCEL)
+
 const express = require('express');
 const cors = require('cors');
 const ytdl = require('@distube/ytdl-core');
@@ -26,13 +28,13 @@ app.get('/video-info', async (req, res) => {
                 hasAudio: f.hasAudio,
                 audioItag: f.hasAudio ? null : (bestAudioFormat ? bestAudioFormat.itag : null)
             }))
-            .filter((v, i, a) => a.findIndex(t => t.quality === v.quality) === i)
+            .filter((v, i, a) => a.findIndex(t => (t.quality === v.quality)) === i)
             .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
         const audioFormats = info.formats
             .filter(f => f.container === 'mp4' && f.audioBitrate === 128)
             .map(f => ({ itag: f.itag, quality: `${f.audioBitrate}kbps` }))
-            .filter((v, i, a) => a.findIndex(t => t.quality === v.quality) === i);
+            .filter((v, i, a) => a.findIndex(t => (t.quality === v.quality)) === i);
 
         res.json({
             title: info.videoDetails.title || 'Título no disponible',
@@ -86,5 +88,5 @@ app.get('/download', async (req, res) => {
     }
 });
 
-// ¡IMPORTANTE! Exportamos la app para que Vercel la use. NO HAY app.listen().
+// ¡IMPORTANTE! Exportamos la app para que Vercel la use.
 module.exports = app;

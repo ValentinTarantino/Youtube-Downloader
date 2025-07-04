@@ -3,7 +3,6 @@ import UrlForm from './components/UrlForm';
 import VideoCard from './components/VideoCard';
 import './App.css'; 
 
-// ¡CAMBIO CLAVE! La URL base ahora es relativa, apuntando a la API de Vercel
 const API_BASE_URL = '';
 
 function App() {
@@ -38,7 +37,6 @@ function App() {
         throw new Error('URL de YouTube no válida.');
       }
 
-      // ¡CAMBIO CLAVE! La petición ahora va a /api/video-info
       const requestUrl = `${API_BASE_URL}/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`;
       const response = await fetch(requestUrl);
       
@@ -74,7 +72,6 @@ function App() {
       params.append('audioItag', audioItag);
     }
 
-    // ¡CAMBIO CLAVE! La descarga ahora va a /api/download
     const downloadUrl = `${API_BASE_URL}/api/download?${params.toString()}`; 
     window.open(downloadUrl, '_blank');
   };
