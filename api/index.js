@@ -7,15 +7,23 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-
 const tempDir = path.join(__dirname, 'temp');
-if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir);
-}
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
 app.use(cors({ origin: '*' }));
 
-// --- Endpoint de información (con filtros de calidad exactos) ---
+// Utilidad para limpiar archivos temporales
+const cleanupFiles = (files) => {
+    files.forEach(file => {
+        if (fs.existsSync(file)) {
+            fs.unlink(file, (err) => {
+                if (err) console.error(`Error al borrar temporal: ${file}`, err);
+            });
+        }
+    });
+};
+
+// --- VIDEO INFO ---
 app.get('/video-info', async (req, res) => {
     const videoURL = req.query.url;
     if (!videoURL || !ytdl.validateURL(videoURL)) {
@@ -24,18 +32,27 @@ app.get('/video-info', async (req, res) => {
 
     try {
         const info = await ytdl.getInfo(videoURL);
+
+        // Sets para evitar calidades duplicadas
         const seenVideoQualities = new Set();
         const seenAudioQualities = new Set();
 
-        const bestAudioFormat = ytdl.filterFormats(info.formats, 'audioonly')
+        // Mejor formato de audio disponible
+        const bestAudioFormat = ytdl
+            .filterFormats(info.formats, 'audioonly')
             .filter(f => f.container === 'mp4' && f.audioBitrate)
             .sort((a, b) => b.audioBitrate - a.audioBitrate)[0];
-        
+
+        // Formatos de video: solo MP4, hasta 720p, sin duplicados
         const videoFormats = info.formats
             .filter(f => f.container === 'mp4' && f.qualityLabel)
             .filter(f => {
                 const qualityNum = parseInt(f.qualityLabel);
-                return qualityNum <= 720 && !seenVideoQualities.has(f.qualityLabel) && seenVideoQualities.add(f.qualityLabel);
+                return (
+                    qualityNum <= 720 &&
+                    !seenVideoQualities.has(f.qualityLabel) &&
+                    seenVideoQualities.add(f.qualityLabel)
+                );
             })
             .map(f => ({
                 itag: f.itag,
@@ -45,15 +62,21 @@ app.get('/video-info', async (req, res) => {
             }))
             .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
-        // --- CAMBIO CLAVE AQUÍ ---
-        // Filtramos para obtener SOLO la calidad de audio de 128kbps y nada más.
-        const audioFormats = info.formats
-            .filter(f => f.container === 'mp4' && f.audioBitrate === 128) // ¡AQUÍ ESTÁ EL FILTRO EXACTO!
+        // Formatos de audio: solo MP4, solo 128kbps, sin duplicados
+        const audioFormats = ytdl
+            .filterFormats(info.formats, 'audioonly')
+            .filter(f => f.container === 'mp4' && f.audioBitrate === 128)
             .filter(f => {
                 const quality = `${f.audioBitrate}kbps`;
-                return !seenAudioQualities.has(quality) && seenAudioQualities.add(quality);
+                return (
+                    !seenAudioQualities.has(quality) &&
+                    seenAudioQualities.add(quality)
+                );
             })
-            .map(f => ({ itag: f.itag, quality: `${f.audioBitrate}kbps` }))
+            .map(f => ({
+                itag: f.itag,
+                quality: `${f.audioBitrate}kbps`
+            }))
             .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
         res.json({
@@ -68,8 +91,7 @@ app.get('/video-info', async (req, res) => {
     }
 });
 
-
-// Endpoint de descarga (sin cambios)
+// --- DOWNLOAD ---
 app.get('/download', async (req, res) => {
     const { url, title = 'video', format, videoItag, audioItag } = req.query;
 
@@ -79,43 +101,64 @@ app.get('/download', async (req, res) => {
 
     const sanitizedTitle = title.replace(/[^a-zA-Z0-9\s-_.]/g, "_");
     res.setHeader('Content-Disposition', contentDisposition(`${sanitizedTitle}.${format}`));
-    
+
     const randomId = Math.random().toString(36).substring(7);
     const outputPath = path.join(tempDir, `output_${randomId}.${format}`);
-    
-    const cleanupFiles = (files) => {
-        files.forEach(file => {
-            if (fs.existsSync(file)) {
-                fs.unlink(file, (err) => {
-                    if (err) console.error(`Error al borrar temporal: ${file}`, err);
-                });
-            }
-        });
-    };
 
     try {
         if (format === 'mp3') {
+            // Descargar y convertir a MP3
             res.setHeader('Content-Type', 'audio/mpeg');
             const audioStream = ytdl(url, { quality: videoItag });
             await new Promise((resolve, reject) => {
-                ffmpeg(audioStream).audioBitrate(128).format('mp3').on('error', reject).on('end', resolve).save(outputPath);
+                ffmpeg(audioStream)
+                    .audioBitrate(128)
+                    .format('mp3')
+                    .on('error', reject)
+                    .on('end', resolve)
+                    .save(outputPath);
             });
         } else if (format === 'mp4' && audioItag) {
+            // Descargar video y audio por separado y fusionar
             const videoPath = path.join(tempDir, `video_${randomId}.mp4`);
             const audioPath = path.join(tempDir, `audio_${randomId}.mp4`);
+
             await Promise.all([
-                new Promise((resolve, reject) => ytdl(url, { quality: videoItag }).pipe(fs.createWriteStream(videoPath)).on('finish', resolve).on('error', reject)),
-                new Promise((resolve, reject) => ytdl(url, { quality: audioItag }).pipe(fs.createWriteStream(audioPath)).on('finish', resolve).on('error', reject))
+                new Promise((resolve, reject) =>
+                    ytdl(url, { quality: videoItag })
+                        .pipe(fs.createWriteStream(videoPath))
+                        .on('finish', resolve)
+                        .on('error', reject)
+                ),
+                new Promise((resolve, reject) =>
+                    ytdl(url, { quality: audioItag })
+                        .pipe(fs.createWriteStream(audioPath))
+                        .on('finish', resolve)
+                        .on('error', reject)
+                )
             ]);
+
             await new Promise((resolve, reject) => {
-                ffmpeg().input(videoPath).videoCodec('copy').input(audioPath).audioCodec('copy').format('mp4').on('error', reject).on('end', resolve).save(outputPath);
+                ffmpeg()
+                    .input(videoPath)
+                    .videoCodec('copy')
+                    .input(audioPath)
+                    .audioCodec('copy')
+                    .format('mp4')
+                    .on('error', reject)
+                    .on('end', resolve)
+                    .save(outputPath);
             });
+
             cleanupFiles([videoPath, audioPath]);
         } else if (format === 'mp4' && !audioItag) {
+            // Descargar solo video (ya tiene audio)
             res.setHeader('Content-Type', 'video/mp4');
             const stream = ytdl(url, { quality: videoItag });
             stream.pipe(fs.createWriteStream(outputPath));
-            await new Promise((resolve, reject) => stream.on('finish', resolve).on('error', reject));
+            await new Promise((resolve, reject) =>
+                stream.on('finish', resolve).on('error', reject)
+            );
         }
 
         res.sendFile(outputPath, (err) => {
@@ -125,7 +168,6 @@ app.get('/download', async (req, res) => {
             }
             cleanupFiles([outputPath]);
         });
-
     } catch (error) {
         console.error('[ERROR FATAL] Proceso de descarga/conversión/fusión falló:', error.message);
         cleanupFiles([outputPath]);
@@ -135,10 +177,12 @@ app.get('/download', async (req, res) => {
     }
 });
 
+// --- SERVER ---
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 4000;
     app.listen(PORT, () => {
         console.log(`Servidor escuchando en el puerto ${PORT}`);
     });
 }
+
 module.exports = app;

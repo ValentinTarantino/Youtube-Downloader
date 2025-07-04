@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select'; // Importamos la herramienta Select
+import { useState, useEffect } from 'react';
+import Select from 'react-select';
 import './VideoCard.css';
 
-// Estilos personalizados para el menú Select
+// Estilos personalizados para react-select
 const customSelectStyles = {
     control: (provided) => ({
         ...provided,
@@ -27,7 +27,11 @@ const customSelectStyles = {
     }),
     option: (provided, state) => ({
         ...provided,
-        background: state.isSelected ? 'var(--glow-primary)' : state.isFocused ? 'var(--glass-bg)' : 'transparent',
+        background: state.isSelected
+            ? 'var(--glow-primary)'
+            : state.isFocused
+                ? 'var(--glass-bg)'
+                : 'transparent',
         color: 'var(--text-primary)',
         cursor: 'pointer',
     }),
@@ -43,11 +47,18 @@ function VideoCard({ videoInfo, onDownload }) {
 
     useEffect(() => {
         if (videoInfo) {
-            // Prepara las opciones para react-select
-            const videoOptions = videoInfo.videoFormats.map(f => ({ value: f.itag, label: f.quality, hasAudio: f.hasAudio, audioItag: f.audioItag }));
-            const audioOptions = videoInfo.audioFormats.map(f => ({ value: f.itag, label: f.quality }));
+            // Opciones para los selectores
+            const videoOptions = videoInfo.videoFormats.map(f => ({
+                value: f.itag,
+                label: f.quality,
+                hasAudio: f.hasAudio,
+                audioItag: f.audioItag,
+            }));
+            const audioOptions = videoInfo.audioFormats.map(f => ({
+                value: f.itag,
+                label: f.quality,
+            }));
 
-            // Selecciona la primera opción por defecto si existe
             setSelectedVideo(videoOptions.length > 0 ? videoOptions[0] : null);
             setSelectedAudio(audioOptions.length > 0 ? audioOptions[0] : null);
         }
@@ -59,13 +70,27 @@ function VideoCard({ videoInfo, onDownload }) {
 
     const handleDownloadClick = (format) => {
         if (format === 'mp4' && selectedVideo) {
-            // Para MP4, pasamos el itag del video y, si no tiene audio, su itag de audio para fusión
-            onDownload('mp4', selectedVideo.value, selectedVideo.hasAudio ? null : selectedVideo.audioItag);
+            onDownload(
+                'mp4',
+                selectedVideo.value,
+                selectedVideo.hasAudio ? null : selectedVideo.audioItag
+            );
         } else if (format === 'mp3' && selectedAudio) {
-            // Para MP3, pasamos el itag del audio como videoItag principal
             onDownload('mp3', selectedAudio.value, null);
         }
     };
+
+    // Opciones para los selectores 
+    const videoOptions = videoFormats.map(f => ({
+        value: f.itag,
+        label: f.quality,
+        hasAudio: f.hasAudio,
+        audioItag: f.audioItag,
+    }));
+    const audioOptions = audioFormats.map(f => ({
+        value: f.itag,
+        label: f.quality,
+    }));
 
     return (
         <div className="video-card animation-fade-in">
@@ -76,7 +101,6 @@ function VideoCard({ videoInfo, onDownload }) {
                 <div className="col-md-8">
                     <div className="video-details">
                         <h2 className="video-title">{title}</h2>
-
                         <div className="quality-selector-grid">
                             {/* Selector para MP4 */}
                             <div className="quality-group">
@@ -85,7 +109,7 @@ function VideoCard({ videoInfo, onDownload }) {
                                     styles={customSelectStyles}
                                     value={selectedVideo}
                                     onChange={setSelectedVideo}
-                                    options={videoFormats.map(f => ({ value: f.itag, label: f.quality, hasAudio: f.hasAudio, audioItag: f.audioItag }))}
+                                    options={videoOptions}
                                     placeholder="Calidad de video..."
                                 />
                                 <button
@@ -96,7 +120,6 @@ function VideoCard({ videoInfo, onDownload }) {
                                     Descargar MP4
                                 </button>
                             </div>
-
                             {/* Selector para MP3 */}
                             <div className="quality-group">
                                 <Select
@@ -104,7 +127,7 @@ function VideoCard({ videoInfo, onDownload }) {
                                     styles={customSelectStyles}
                                     value={selectedAudio}
                                     onChange={setSelectedAudio}
-                                    options={audioFormats.map(f => ({ value: f.itag, label: f.quality }))}
+                                    options={audioOptions}
                                     placeholder="Calidad de audio..."
                                 />
                                 <button
