@@ -1,0 +1,26 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "youtube-downloader-frontend/package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "youtube-downloader-frontend/dist"
+            }
+        },
+        {
+            "src": "api/index.js",
+            "use": "@vercel/node"
+        }
+    ],
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/youtube-downloader-frontend/dist/index.html"
+        }
+    ]
+}
