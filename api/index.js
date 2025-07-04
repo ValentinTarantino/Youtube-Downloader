@@ -5,6 +5,11 @@ const contentDisposition = require('content-disposition');
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 
+
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
+
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 
