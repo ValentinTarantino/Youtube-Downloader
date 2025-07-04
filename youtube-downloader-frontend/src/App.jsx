@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import UrlForm from './components/UrlForm';
 import VideoCard from './components/VideoCard';
-import './App.css'; 
+import './App.css';
 
-
-const API_BASE_URL = '';
+const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || 'http://localhost:4000'; // Default para desarrollo
 
 function App() {
   const [url, setUrl] = useState('');
@@ -22,11 +21,10 @@ function App() {
     setVideoInfo(null);
 
     try {
-      const apiPath = import.meta.env.PROD ? '/api/video-info' : '/video-info';
-      const requestUrl = `${API_BASE_URL}${apiPath}?url=${encodeURIComponent(url)}`; 
-      
-      const response = await fetch(requestUrl); 
-      
+      const requestUrl = `${API_BASE_URL}/video-info?url=${encodeURIComponent(url)}`;
+
+      const response = await fetch(requestUrl);
+
       if (!response.ok) {
         throw new Error('No se pudo obtener la información. ¿La URL es correcta?');
       }
@@ -39,20 +37,19 @@ function App() {
     }
   };
 
-  const handleDownload = (format, videoItag, audioItag) => { 
+  const handleDownload = (format, videoItag, audioItag) => {
     const params = new URLSearchParams({
       url: url,
       format: format,
       title: videoInfo.title,
-      videoItag: videoItag, 
+      videoItag: videoItag,
     });
-    
+
     if (format === 'mp4' && audioItag) {
       params.append('audioItag', audioItag);
     }
 
-    const apiPath = import.meta.env.PROD ? '/api/download' : '/download';
-    const downloadUrl = `${API_BASE_URL}${apiPath}?${params.toString()}`; 
+    const downloadUrl = `${API_BASE_URL}/download?${params.toString()}`;
     window.open(downloadUrl, '_blank');
   };
 
@@ -74,10 +71,10 @@ function App() {
             />
 
             {error && <p className="error-message">{error}</p>}
-            
+
             <VideoCard
               videoInfo={videoInfo}
-              onDownload={handleDownload} 
+              onDownload={handleDownload}
             />
           </main>
         </div>
@@ -87,6 +84,3 @@ function App() {
 }
 
 export default App;
-
-
-

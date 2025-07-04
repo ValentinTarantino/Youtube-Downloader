@@ -3,27 +3,17 @@ const cors = require('cors');
 const ytdl = require('@distube/ytdl-core');
 const ffmpeg = require('fluent-ffmpeg');
 const contentDisposition = require('content-disposition');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
-const tempDir = path.join(__dirname, 'temp');
-if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-app.use(cors({ origin: '*' }));
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 
-// Utilidad para limpiar archivos temporales
-const cleanupFiles = (files) => {
-    files.forEach(file => {
-        if (fs.existsSync(file)) {
-            fs.unlink(file, (err) => {
-                if (err) console.error(`Error al borrar temporal: ${file}`, err);
-            });
-        }
-    });
-};
+// --- HEALTH CHECK (RENDER) ---
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
 
-// --- VIDEO INFO ---
+// --- VIDEO INFO --- 
 app.get('/video-info', async (req, res) => {
     const videoURL = req.query.url;
     if (!videoURL || !ytdl.validateURL(videoURL)) {
@@ -33,17 +23,14 @@ app.get('/video-info', async (req, res) => {
     try {
         const info = await ytdl.getInfo(videoURL);
 
-        // Sets para evitar calidades duplicadas
         const seenVideoQualities = new Set();
         const seenAudioQualities = new Set();
 
-        // Mejor formato de audio disponible
         const bestAudioFormat = ytdl
             .filterFormats(info.formats, 'audioonly')
             .filter(f => f.container === 'mp4' && f.audioBitrate)
             .sort((a, b) => b.audioBitrate - a.audioBitrate)[0];
 
-        // Formatos de video: solo MP4, hasta 720p, sin duplicados
         const videoFormats = info.formats
             .filter(f => f.container === 'mp4' && f.qualityLabel)
             .filter(f => {
@@ -62,7 +49,6 @@ app.get('/video-info', async (req, res) => {
             }))
             .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
-        // Formatos de audio: solo MP4, solo 128kbps, sin duplicados
         const audioFormats = ytdl
             .filterFormats(info.formats, 'audioonly')
             .filter(f => f.container === 'mp4' && f.audioBitrate === 128)
@@ -91,98 +77,52 @@ app.get('/video-info', async (req, res) => {
     }
 });
 
-// --- DOWNLOAD ---
+
+// --- DOWNLOAD (MODIFICADO PARA STREAMING DIRECTO) ---
 app.get('/download', async (req, res) => {
     const { url, title = 'video', format, videoItag, audioItag } = req.query;
 
-    if (!ytdl.validateURL(url) || !videoItag) {
-        return res.status(400).send({ error: 'Parámetros inválidos.' });
+    if (!ytdl.validateURL(url)) {
+        return res.status(400).send({ error: 'URL inválida o parámetros faltantes.' });
     }
 
     const sanitizedTitle = title.replace(/[^a-zA-Z0-9\s-_.]/g, "_");
     res.setHeader('Content-Disposition', contentDisposition(`${sanitizedTitle}.${format}`));
 
-    const randomId = Math.random().toString(36).substring(7);
-    const outputPath = path.join(tempDir, `output_${randomId}.${format}`);
-
     try {
         if (format === 'mp3') {
-            // Descargar y convertir a MP3
             res.setHeader('Content-Type', 'audio/mpeg');
-            const audioStream = ytdl(url, { quality: videoItag });
-            await new Promise((resolve, reject) => {
-                ffmpeg(audioStream)
-                    .audioBitrate(128)
-                    .format('mp3')
-                    .on('error', reject)
-                    .on('end', resolve)
-                    .save(outputPath);
-            });
-        } else if (format === 'mp4' && audioItag) {
-            // Descargar video y audio por separado y fusionar
-            const videoPath = path.join(tempDir, `video_${randomId}.mp4`);
-            const audioPath = path.join(tempDir, `audio_${randomId}.mp4`);
-
-            await Promise.all([
-                new Promise((resolve, reject) =>
-                    ytdl(url, { quality: videoItag })
-                        .pipe(fs.createWriteStream(videoPath))
-                        .on('finish', resolve)
-                        .on('error', reject)
-                ),
-                new Promise((resolve, reject) =>
-                    ytdl(url, { quality: audioItag })
-                        .pipe(fs.createWriteStream(audioPath))
-                        .on('finish', resolve)
-                        .on('error', reject)
-                )
-            ]);
-
-            await new Promise((resolve, reject) => {
-                ffmpeg()
-                    .input(videoPath)
-                    .videoCodec('copy')
-                    .input(audioPath)
-                    .audioCodec('copy')
-                    .format('mp4')
-                    .on('error', reject)
-                    .on('end', resolve)
-                    .save(outputPath);
-            });
-
-            cleanupFiles([videoPath, audioPath]);
-        } else if (format === 'mp4' && !audioItag) {
-            // Descargar solo video (ya tiene audio)
+            ffmpeg(ytdl(url, { quality: 'highestaudio' }))
+                .audioBitrate(128)
+                .toFormat('mp3')
+                .on('error', (err) => {
+                    console.error('Error durante la conversión a MP3:', err.message);
+                    if (!res.headersSent) res.status(500).send('Error durante la conversión a MP3.');
+                })
+                .pipe(res);
+        } else if (format === 'mp4') {
             res.setHeader('Content-Type', 'video/mp4');
-            const stream = ytdl(url, { quality: videoItag });
-            stream.pipe(fs.createWriteStream(outputPath));
-            await new Promise((resolve, reject) =>
-                stream.on('finish', resolve).on('error', reject)
-            );
+            ytdl(url, { quality: videoItag })
+                .on('error', (err) => {
+                    console.error('Error durante la descarga de MP4:', err.message);
+                    if (!res.headersSent) res.status(500).send('Error durante la descarga de MP4.');
+                })
+                .pipe(res);
+        } else {
+            return res.status(400).send({ error: 'Formato o itag no soportado.' });
         }
-
-        res.sendFile(outputPath, (err) => {
-            if (err) {
-                console.error('Error al enviar archivo al cliente:', err.message);
-                if (!res.headersSent) res.status(500).send({ error: 'Error al enviar el archivo final.' });
-            }
-            cleanupFiles([outputPath]);
-        });
     } catch (error) {
-        console.error('[ERROR FATAL] Proceso de descarga/conversión/fusión falló:', error.message);
-        cleanupFiles([outputPath]);
+        console.error('[ERROR FATAL] Proceso de descarga/conversión falló:', error.message);
         if (!res.headersSent) {
             res.status(500).send({ error: 'La operación falló en el servidor.' });
         }
     }
 });
 
-// --- SERVER ---
-if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 4000;
-    app.listen(PORT, () => {
-        console.log(`Servidor escuchando en el puerto ${PORT}`);
-    });
-}
-
-module.exports = app;
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+    console.log(`Servidor escuchando en el puerto ${PORT}`);
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('Modo de desarrollo activo.');
+    }
+});
