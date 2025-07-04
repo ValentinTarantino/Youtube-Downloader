@@ -1,4 +1,4 @@
-// api/index.js (CÓDIGO COMPLETO Y DEFINITIVO PARA VERCEL)
+// api/index.js (CÓDIGO COMPLETO Y CORREGIDO PARA VERCEL)
 
 const express = require('express');
 const cors = require('cors');
@@ -8,10 +8,11 @@ const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 
 const app = express();
-app.use(cors());
+app.use(cors()); // Permitir peticiones
 
 // --- Ruta para obtener información del video ---
-app.get('/video-info', async (req, res) => {
+// Vercel enrutará /api/video-info a esta función
+app.get('/api/video-info', async (req, res) => {
     const videoURL = req.query.url;
     if (!videoURL || !ytdl.validateURL(videoURL)) {
         return res.status(400).send({ error: 'URL inválida.' });
@@ -28,13 +29,13 @@ app.get('/video-info', async (req, res) => {
                 hasAudio: f.hasAudio,
                 audioItag: f.hasAudio ? null : (bestAudioFormat ? bestAudioFormat.itag : null)
             }))
-            .filter((v, i, a) => a.findIndex(t => (t.quality === v.quality)) === i)
+            .filter((v, i, a) => a.findIndex(t => t.quality === v.quality) === i)
             .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
         const audioFormats = info.formats
             .filter(f => f.container === 'mp4' && f.audioBitrate === 128)
             .map(f => ({ itag: f.itag, quality: `${f.audioBitrate}kbps` }))
-            .filter((v, i, a) => a.findIndex(t => (t.quality === v.quality)) === i);
+            .filter((v, i, a) => a.findIndex(t => t.quality === v.quality) === i);
 
         res.json({
             title: info.videoDetails.title || 'Título no disponible',
@@ -49,7 +50,8 @@ app.get('/video-info', async (req, res) => {
 });
 
 // --- Ruta de Descarga ---
-app.get('/download', async (req, res) => {
+// Vercel enrutará /api/download a esta función
+app.get('/api/download', async (req, res) => {
     const { url, title = 'video', format, videoItag, audioItag } = req.query;
 
     if (!ytdl.validateURL(url)) {
@@ -88,5 +90,5 @@ app.get('/download', async (req, res) => {
     }
 });
 
-// ¡IMPORTANTE! Exportamos la app para que Vercel la use.
+// ¡IMPORTANTE! Exportamos la app para que Vercel la use como una función.
 module.exports = app;
