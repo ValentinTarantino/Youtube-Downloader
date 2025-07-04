@@ -6,13 +6,12 @@ services:
     plan: free
     buildCommand: "npm install"
     startCommand: "npm start"
-    healthCheck:
-      path: /healthz
-      initialDelaySeconds: 120  
+    healthCheckPath: /healthz
+    initialDelaySeconds: 120  
     envVars:
       - key: NODE_ENV
         value: production
       - key: YOUTUBE_COOKIE
-        sync: false 
+        sync: false
       - key: CORS_ORIGIN
         sync: false
