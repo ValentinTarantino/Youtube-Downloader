@@ -68,17 +68,17 @@ function VideoCard({ videoInfo, onDownload }) {
 
     const { title, thumbnail, videoFormats, audioFormats } = videoInfo;
 
-    const handleDownloadClick = (format) => {
-        if (format === 'mp4' && selectedVideo) {
-            onDownload(
-                'mp4',
-                selectedVideo.value,
-                selectedVideo.hasAudio ? null : selectedVideo.audioItag
-            );
-        } else if (format === 'mp3' && selectedAudio) {
-            onDownload('mp3', selectedAudio.value, null);
-        }
-    };
+const handleDownloadClick = (format) => {
+    if (format === 'mp4' && selectedVideo) {
+        onDownload(
+            'mp4',
+            selectedVideo.value,
+            selectedVideo.hasAudio ? null : selectedVideo.audioItag 
+        );
+    } else if (format === 'mp3' && selectedAudio) {
+        onDownload('mp3', selectedAudio.value, null);
+    }
+};
 
     // Opciones para los selectores 
     const videoOptions = videoFormats.map(f => ({

@@ -1,16 +1,14 @@
-# render.yaml
 services:
   - type: web
-    name: youtube-downloader-api
-    rootDir: api
-    env: node
-    buildCommand: "npm install"
-    startCommand: "npm start"
+    name: youtube-downloader-api  
+    env: node                     
+    rootDir: api                  
+    plan: free                    
+    buildCommand: "npm install"   
+    startCommand: "npm start"     
+    healthCheckPath: /healthz     
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: CORS_ORIGIN
-        value: https://youtube-downloader-phi-pearl.vercel.app/ 
-    healthCheckPath: /healthz
-    plan: free
-    autoDeploy: true
-    buildpacks:
-      - url: https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
+        generateValue: true
