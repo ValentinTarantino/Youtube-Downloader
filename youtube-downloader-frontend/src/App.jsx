@@ -35,14 +35,13 @@ function App() {
 
         if (!response.ok) {
           let errorMsg = `Error en la API: ${response.status} ${response.statusText}`;
-          let responseBody = ''; // Variable para guardar el cuerpo de la respuesta
+          let responseBody = ''; 
 
           try {
-              responseBody = await response.text(); // Lee el cuerpo UNA SOLA VEZ
-              const errorData = JSON.parse(responseBody); // Intenta parsear como JSON
+              responseBody = await response.text(); 
+              const errorData = JSON.parse(responseBody); 
               errorMsg = errorData.error || errorMsg;
           } catch (jsonError) {
-              // Si falla JSON.parse, significa que no era JSON (ej. HTML de Vercel 404).
               if (responseBody.startsWith('<!DOCTYPE')) {
                   errorMsg = `Error inesperado: El servidor devolvió una página HTML en lugar de JSON. (Status: ${response.status})`;
               } else if (responseBody.length > 0) {
