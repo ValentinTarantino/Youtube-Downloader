@@ -1,143 +1,34 @@
+console.log("[API STARTUP] Function api/index.js is attempting to start!"); // ¡Este log debe aparecer en Vercel Functions!
+
 const express = require("express");
 const cors = require("cors");
-const ytdl = require("@distube/ytdl-core");
-const contentDisposition = require("content-disposition");
-const { spawn } = require("child_process");
-const ffmpegPath = require("ffmpeg-static");
-const ffmpeg = require("fluent-ffmpeg");
+// --- Comentar o eliminar las siguientes líneas ---
+// const ytdl = require("@distube/ytdl-core");
+// const contentDisposition = require("content-disposition");
+// const { spawn } = require("child_process");
+// const ffmpegPath = require("ffmpeg-static");
+// const ffmpeg = require("fluent-ffmpeg");
+// --- Fin de líneas a comentar ---
 
 const app = express();
 app.use(cors());
 
-// -------------------- /video-info -------------------- // 
-app.get("/video-info", async (req, res) => { 
-    const videoURL = req.query.url;
-    if (!videoURL || !ytdl.validateURL(videoURL)) {
-        return res.status(400).send({ error: "URL inválida." });
-    }
-
-    try {
-        const info = await ytdl.getInfo(videoURL);
-        const bestAudioFormat = ytdl
-            .filterFormats(info.formats, "audioonly")
-            .find((f) => f.container === "mp4" && f.audioBitrate);
-
-        const videoFormats = info.formats
-            .filter(
-                (f) =>
-                f.container === "mp4" &&
-                f.qualityLabel &&
-                parseInt(f.qualityLabel) <= 720
-            )
-            .map((f) => ({
-                itag: f.itag,
-                quality: f.qualityLabel,
-                hasAudio: f.hasAudio,
-                audioItag: f.hasAudio
-                ? null
-                : bestAudioFormat
-                ? bestAudioFormat.itag
-                : null,
-            }))
-            .filter((v, i, a) => a.findIndex((t) => t.quality === v.quality) === i)
-            .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
-
-        const audioFormats = info.formats
-            .filter((f) => f.container === "mp4" && f.audioBitrate === 128)
-            .map((f) => ({ itag: f.itag, quality: `${f.audioBitrate}kbps` }))
-            .filter((v, i, a) => a.findIndex((t) => t.quality === v.quality) === i);
-
-        res.json({
-            title: info.videoDetails.title || "Título no disponible",
-            thumbnail: info.videoDetails.thumbnails.pop().url,
-            videoFormats,
-            audioFormats,
-        });
-    } catch (error) {
-        console.error(`[VIDEO_INFO ERROR]`, error.message);
-        res.status(500).send({ error: "Error al obtener info del video." });
-    }
+// Esta ruta capturará CUALQUIER petición a la API
+app.all('*', (req, res) => {
+    console.log(`[API RECEIVED] Method: ${req.method}, Path: ${req.path}, OriginalUrl: ${req.originalUrl}, Query: ${JSON.stringify(req.query)}`);
+    res.status(200).json({
+        message: "API function is running and serving this test response!",
+        receivedPath: req.path,
+        originalUrl: req.originalUrl,
+        query: req.query
+    });
 });
 
-// -------------------- /download -------------------- // 
-app.get("/download", async (req, res) => { 
-    const { url, title = "video", format, videoItag, audioItag } = req.query;
-
-    if (!ytdl.validateURL(url)) {
-        return res.status(400).send({ error: "URL inválida." });
-    }
-
-    const sanitizedTitle = title.replace(/[^a-zA-Z0-9\s-_.]/g, "_");
-    res.setHeader(
-        "Content-Disposition",
-        contentDisposition(`${sanitizedTitle}.${format}`)
-    );
-
-    try {
-        if (format === "mp3") {
-            res.setHeader("Content-Type", "audio/mpeg");
-            ffmpeg.setFfmpegPath(ffmpegPath);
-            const audioStream = ytdl(url, { quality: "highestaudio" });
-            ffmpeg(audioStream).audioBitrate(128).toFormat("mp3").pipe(res);
-        } else if (format === "mp4") {
-            res.setHeader("Content-Type", "video/mp4");
-            if (audioItag) {
-                const videoStream = ytdl(url, { quality: videoItag });
-                const audioStream = ytdl(url, {
-                    quality: audioItag,
-                    filter: "audioonly",
-                });
-                const ffmpegArgs = [
-                    "-i",
-                    "pipe:3",
-                    "-i",
-                    "pipe:4",
-                    "-map",
-                    "0:v",
-                    "-map",
-                    "1:a",
-                    "-c:v",
-                    "copy",
-                    "-c:a",
-                    "copy",
-                    "-f",
-                    "mp4",
-                    "-movflags",
-                    "frag_keyframe+empty_moov",
-                    "pipe:1",
-                ];
-                const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
-                    stdio: ["pipe", "pipe", "pipe", "pipe", "pipe"],
-                });
-                videoStream.pipe(ffmpegProcess.stdio[3]);
-                audioStream.pipe(ffmpegProcess.stdio[4]);
-                ffmpegProcess.stdio[1].pipe(res);
-                ffmpegProcess.on("close", () => res.end());
-            } else {
-                ytdl(url, { quality: videoItag }).pipe(res);
-            }
-        }
-    } catch (error) {
-        console.error(`[DOWNLOAD FATAL]`, error.message);
-        if (!res.headersSent) res.status(500).send("Error inesperado.");
-        res.end();
-    }
-});
-
-
-// Manejador de errores para rutas no encontradas (404)
-app.use((req, res) => {
-    console.error(`[EXPRESS 404] Route not found: ${req.method} ${req.originalUrl}`); // Esto aparecerá en los logs de Vercel
-    res.status(404).json({ error: `La ruta '${req.originalUrl}' no fue encontrada en la API.` });
-});
-
-// Manejador de errores general (500)
-app.use((err, req, res, next) => {
-  console.error(`[EXPRESS ERROR]`, err.stack); // Esto aparecerá en los logs de Vercel
-    res.status(500).json({ error: "Un error interno del servidor ha ocurrido." });
-});
-
-
-
+// --- Comentar o eliminar las siguientes líneas (todas tus rutas originales y manejadores de error) ---
+// app.get("/video-info", ...)
+// app.get("/download", ...)
+// app.use((req, res) => { ... }) // Tu manejador de 404
+// app.use((err, req, res, next) => { ... }) // Tu manejador de 500
+// --- Fin de líneas a comentar ---
 
 module.exports = app;

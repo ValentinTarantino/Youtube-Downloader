@@ -3,7 +3,7 @@ import UrlForm from './components/UrlForm';
 import VideoCard from './components/VideoCard';
 import './App.css'; 
 
-const API_BASE_URL = ''; // Esto es correcto para Vercel, apunta al mismo dominio
+const API_BASE_URL = '';
 
 function App() {
   const [rawUrl, setRawUrl] = useState('');
@@ -24,40 +24,39 @@ function App() {
     setCleanYoutubeUrl('');
 
     try {
-      // Expresión regular para extraer el ID del video de varios formatos de URL de YouTube
       const regExp = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
       const match = rawUrl.trim().match(regExp);
 
       if (match && match[1]) {
         const videoId = match[1];
-        // La URL canónica de YouTube que se pasará a la API
         const finalYoutubeUrl = `https://www.youtube.com/watch?v=${videoId}`; 
         
-        // La URL que se pasará a la API
-        // Vercel enruta /api/video-info a tu función, que luego recibe /video-info
         const response = await fetch(`${API_BASE_URL}/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`);
 
         if (!response.ok) {
-          // Intentar parsear el error como JSON, si no, usar el status y statusText
           let errorMsg = `Error en la API: ${response.status} ${response.statusText}`;
+          let responseBody = ''; // Variable para guardar el cuerpo de la respuesta
+
           try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
+              responseBody = await response.text(); // Lee el cuerpo UNA SOLA VEZ
+              const errorData = JSON.parse(responseBody); // Intenta parsear como JSON
+              errorMsg = errorData.error || errorMsg;
           } catch (jsonError) {
-            // Si la respuesta no es JSON (ej. 404 HTML), capturamos el texto o el status
-            const responseText = await response.text();
-            if (responseText.startsWith('<!DOCTYPE')) {
-                errorMsg = `Error inesperado: El servidor devolvió una página HTML en lugar de JSON. (Status: ${response.status})`;
-            } else {
-                errorMsg = `Error inesperado del servidor: ${responseText.substring(0, 100)} (Status: ${response.status})`;
-            }
+              // Si falla JSON.parse, significa que no era JSON (ej. HTML de Vercel 404).
+              if (responseBody.startsWith('<!DOCTYPE')) {
+                  errorMsg = `Error inesperado: El servidor devolvió una página HTML en lugar de JSON. (Status: ${response.status})`;
+              } else if (responseBody.length > 0) {
+                  errorMsg = `Error inesperado del servidor: ${responseBody.substring(0, 100)} (Status: ${response.status})`;
+              } else {
+                  errorMsg = `Error desconocido de la API. (Status: ${response.status})`;
+              }
           }
           throw new Error(errorMsg);
         }
 
-        const data = await response.json();
+        const data = await response.json(); 
         setVideoInfo(data);
-        setCleanYoutubeUrl(finalYoutubeUrl); // Guardamos la URL limpia para la descarga
+        setCleanYoutubeUrl(finalYoutubeUrl);
       } else {
         throw new Error('URL de YouTube no válida. No se pudo encontrar un ID de video.');
       }
