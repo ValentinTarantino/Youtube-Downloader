@@ -1,11 +1,26 @@
 {
 "version": 2,
 "builds": [
-    { "src": "api/index.js", "use": "@vercel/node" },
-    { "src": "vite.config.js", "use": "@vercel/static-build" }
+    {
+    "src": "youtube-downloader-frontend/package.json",
+    "use": "@vercel/static-build",
+    "config": {
+        "distDir": "dist"
+    }
+    },
+    {
+    "src": "api/index.js",
+    "use": "@vercel/node"
+    }
 ],
-"routes": [
-    { "src": "/api/(.*)", "dest": "api/index.js" },
-    { "src": "/(.*)", "dest": "/" }
+    "routes": [
+    {
+    "src": "/api/(.*)",
+    "dest": "api/index.js"
+    },
+    {
+    "src": "/(.*)",
+    "dest": "youtube-downloader-frontend/dist/index.html"
+    }
 ]
 }

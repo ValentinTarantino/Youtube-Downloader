@@ -3,7 +3,6 @@ import UrlForm from './components/UrlForm';
 import VideoCard from './components/VideoCard';
 import './App.css'; 
 
-
 const API_BASE_URL = '';
 
 function App() {
@@ -13,51 +12,47 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-const handleGetVideoInfo = async () => {
-  if (!rawUrl) {
-    setError('Por favor, introduce una URL de YouTube.');
-    return;
-  }
-
-  setIsLoading(true);
-  setError('');
-  setVideoInfo(null);
-  setCleanYoutubeUrl('');
-
-  try {
-    let urlToProcess = rawUrl.trim();
-    if (!urlToProcess.startsWith('http')) {
-      urlToProcess = `https://${urlToProcess}`;
+  const handleGetVideoInfo = async () => {
+    if (!rawUrl) {
+      setError('Por favor, introduce una URL de YouTube.');
+      return;
     }
 
-    const regExp = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
-    const match = urlToProcess.match(regExp);
-    let finalYoutubeUrl = urlToProcess;
+    setIsLoading(true);
+    setError('');
+    setVideoInfo(null);
+    setCleanYoutubeUrl('');
 
-    if (match && match[1]) {
-      finalYoutubeUrl = `https://www.youtube.com/watch?v=${match[1]}`;
-    } else {
-      throw new Error('URL de YouTube no válida.');
+    try {
+      // Expresión regular para extraer el ID del video de varios formatos de URL de YouTube
+      const regExp = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+      const match = rawUrl.trim().match(regExp);
+
+      if (match && match[1]) {
+        const videoId = match[1];
+        const finalYoutubeUrl = `http://googleusercontent.com/youtube.com/5${videoId}`;
+        
+        // La URL que se pasará a la API
+        const response = await fetch(`/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Error en la API: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setVideoInfo(data);
+        setCleanYoutubeUrl(finalYoutubeUrl); // Guardamos la URL limpia para la descarga
+      } else {
+        throw new Error('URL de YouTube no válida. No se pudo encontrar un ID de video.');
+      }
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-
-    // LLAMADA ACTUALIZADA PARA FUNCIONAR EN VERCEL
-    const response = await fetch(`/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error en la API: ${response.status}`);
-    }
-
-    const data = await response.json();
-    setVideoInfo(data);
-    setCleanYoutubeUrl(finalYoutubeUrl);
-
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleDownload = (format, videoItag, audioItag) => { 
     if (!cleanYoutubeUrl) {
