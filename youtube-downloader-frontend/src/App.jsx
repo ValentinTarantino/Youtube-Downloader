@@ -30,7 +30,7 @@ function App() {
 
       if (match && match[1]) {
         const videoId = match[1];
-        const finalYoutubeUrl = `http://googleusercontent.com/youtube.com/5${videoId}`;
+        const finalYoutubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
         
         // La URL que se pasará a la API
         const response = await fetch(`/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`);
