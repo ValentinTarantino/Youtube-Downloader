@@ -124,4 +124,20 @@ app.get("/download", async (req, res) => {
     }
 });
 
+
+// Manejador de errores para rutas no encontradas (404)
+app.use((req, res) => {
+    console.error(`[EXPRESS 404] Route not found: ${req.method} ${req.originalUrl}`); // Esto aparecerá en los logs de Vercel
+    res.status(404).json({ error: `La ruta '${req.originalUrl}' no fue encontrada en la API.` });
+});
+
+// Manejador de errores general (500)
+app.use((err, req, res, next) => {
+  console.error(`[EXPRESS ERROR]`, err.stack); // Esto aparecerá en los logs de Vercel
+    res.status(500).json({ error: "Un error interno del servidor ha ocurrido." });
+});
+
+
+
+
 module.exports = app;

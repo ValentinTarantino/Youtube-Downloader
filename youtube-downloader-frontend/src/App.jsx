@@ -3,7 +3,7 @@ import UrlForm from './components/UrlForm';
 import VideoCard from './components/VideoCard';
 import './App.css'; 
 
-const API_BASE_URL = '';
+const API_BASE_URL = ''; // Esto es correcto para Vercel, apunta al mismo dominio
 
 function App() {
   const [rawUrl, setRawUrl] = useState('');
@@ -30,14 +30,29 @@ function App() {
 
       if (match && match[1]) {
         const videoId = match[1];
-        const finalYoutubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        // La URL canónica de YouTube que se pasará a la API
+        const finalYoutubeUrl = `https://www.youtube.com/watch?v=${videoId}`; 
         
         // La URL que se pasará a la API
-        const response = await fetch(`/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`);
+        // Vercel enruta /api/video-info a tu función, que luego recibe /video-info
+        const response = await fetch(`${API_BASE_URL}/api/video-info?url=${encodeURIComponent(finalYoutubeUrl)}`);
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Error en la API: ${response.status}`);
+          // Intentar parsear el error como JSON, si no, usar el status y statusText
+          let errorMsg = `Error en la API: ${response.status} ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorMsg;
+          } catch (jsonError) {
+            // Si la respuesta no es JSON (ej. 404 HTML), capturamos el texto o el status
+            const responseText = await response.text();
+            if (responseText.startsWith('<!DOCTYPE')) {
+                errorMsg = `Error inesperado: El servidor devolvió una página HTML en lugar de JSON. (Status: ${response.status})`;
+            } else {
+                errorMsg = `Error inesperado del servidor: ${responseText.substring(0, 100)} (Status: ${response.status})`;
+            }
+          }
+          throw new Error(errorMsg);
         }
 
         const data = await response.json();
