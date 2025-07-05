@@ -1,62 +1,30 @@
 const express = require("express");
 const cors = require("cors");
-const ytdl = require("@distube/ytdl-core");
-const contentDisposition = require("content-disposition");
-const { spawn } = require("child_process");
-const ffmpegPath = require("ffmpeg-static");
-const ffmpeg = require("fluent-ffmpeg");
+// const ytdl = require("@distube/ytdl-core"); // Comentar
+// const contentDisposition = require("content-disposition"); // Comentar
+// const { spawn } = require("child_process"); // Comentar
+// const ffmpegPath = require("ffmpeg-static"); // Comentar
+// const ffmpeg = require("fluent-ffmpeg"); // Comentar
 
 const app = express();
 app.use(cors());
 
-// -------------------- /api/video-info --------------------
-app.get("/api/video-info", async (req, res) => {
-const videoURL = req.query.url;
-if (!videoURL || !ytdl.validateURL(videoURL)) {
-    return res.status(400).send({ error: "URL inválida." });
-}
-
-try {
-    const info = await ytdl.getInfo(videoURL);
-    const bestAudioFormat = ytdl
-    .filterFormats(info.formats, "audioonly")
-    .find((f) => f.container === "mp4" && f.audioBitrate);
-
-    const videoFormats = info.formats
-    .filter(
-        (f) =>
-        f.container === "mp4" &&
-        f.qualityLabel &&
-        parseInt(f.qualityLabel) <= 720
-    )
-    .map((f) => ({
-        itag: f.itag,
-        quality: f.qualityLabel,
-        hasAudio: f.hasAudio,
-        audioItag: f.hasAudio
-        ? null
-        : bestAudioFormat
-        ? bestAudioFormat.itag
-        : null,
-    }))
-    .filter((v, i, a) => a.findIndex((t) => t.quality === v.quality) === i)
-    .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
-
-    const audioFormats = info.formats
-    .filter((f) => f.container === "mp4" && f.audioBitrate === 128)
-    .map((f) => ({ itag: f.itag, quality: `${f.audioBitrate}kbps` }))
-    .filter((v, i, a) => a.findIndex((t) => t.quality === v.quality) === i);
-
-    res.json({
-    title: info.videoDetails.title || "Título no disponible",
-    thumbnail: info.videoDetails.thumbnails.pop().url,
-    videoFormats,
-    audioFormats,
-    });
-} catch (error) {
-    console.error(`[VIDEO_INFO ERROR]`, error.message);
-    res.status(500).send({ error: "Error al obtener info del video." });
-}
+// -------------------- /video-info (Temporal) --------------------
+app.get("/video-info", async (req, res) => {
+    console.log("[TEST] Received request for /video-info. Returning dummy data."); // Esto debería aparecer en los logs de Vercel Functions
+    try {
+        // Simplemente devuelve data dummy para probar que la función se ejecuta
+        res.json({
+            title: "Dummy Video Title",
+            thumbnail: "https://via.placeholder.com/150", // Una URL de imagen genérica
+            videoFormats: [{ itag: "test-720p", quality: "720p", hasAudio: true, audioItag: null }],
+            audioFormats: [{ itag: "test-128kbps", quality: "128kbps" }],
+            message: "This is a test response. If you see this, the API is working!"
+        });
+    } catch (error) {
+        console.error(`[VIDEO_INFO ERROR - TEST]`, error.message);
+        res.status(500).send({ error: "Error al obtener info del video (TEST)." });
+    }
 });
 
 // -------------------- /api/download --------------------
