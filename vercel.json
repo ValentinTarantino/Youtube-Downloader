@@ -9,7 +9,7 @@
     }
     },
     {
-    "src": "api/index.js",
+    "src": "/api/(.*)",
     "dest": "/api/index.js"
     }
 ],
