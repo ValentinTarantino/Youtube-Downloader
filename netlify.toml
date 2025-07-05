@@ -1,0 +1,34 @@
+# netlify.toml (en la raíz de YOUTUBELINK)
+
+[build]
+  # Directorio desde donde se ejecuta el comando de build.
+  # Netlify CD a esta carpeta antes de ejecutar el "command".
+  base = "/" # La raíz de tu repositorio
+
+  # Comando para construir tu frontend (se ejecuta desde "base")
+  command = "cd youtube-downloader-frontend && npm install && npm run build"
+
+  # Directorio donde Netlify encontrará los archivos estáticos de tu frontend
+  publish = "youtube-downloader-frontend/dist"
+
+  # Directorio donde Netlify buscará tus funciones serverless
+  functions = "netlify/functions" # Creamos una carpeta llamada 'netlify/functions' para nuestras funciones
+
+[functions]
+  # Opcional: Especifica el bundler para tus funciones (recomendado para más velocidad)
+  node_bundler = "esbuild"
+  # Opcional: Especifica la versión de Node.js para tus funciones (Netlify usa Node.js 18 por defecto si no se especifica)
+  node_version = "20" # Usamos 20.x, igual que probamos en Vercel
+
+# Redirecciones y reescrituras
+[[redirects]]
+  # Todas las peticiones a /api/* serán redirigidas a tu función 'api_handler'
+  from = "/api/*"
+  to = "/.netlify/functions/api_handler/:splat" # Netlify buscará 'api_handler' dentro de 'netlify/functions'
+  status = 200 # Importante para proxy (reescritura)
+
+[[redirects]]
+  # Para el enrutamiento de SPA (Single Page Application) de React
+  from = "/*"
+  to = "/index.html"
+  status = 200
